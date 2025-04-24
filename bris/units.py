@@ -55,6 +55,7 @@ def get_conversion_map() -> dict[tuple[str, str], tuple[float, float]]:
     linear_convert["octas", "1"] = (0.125, 0)
     linear_convert["octas", "%"] = (12.5, 0)
     linear_convert["m", "mm"] = (1000, 0)
+    linear_convert["m", "kg/m^2"] = (1000, 0)
 
     # ** means the same as ^
     for key, _c in dict(linear_convert).items():
