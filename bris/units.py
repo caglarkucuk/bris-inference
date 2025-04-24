@@ -48,14 +48,14 @@ def get_conversion_map() -> dict[tuple[str, str], tuple[float, float]]:
     linear_convert["celsius", "K"] = (1, 273.15)
     linear_convert["m/s", "km/h"] = (3.6, 0)
     linear_convert["kg/m^2", "mm"] = (1, 0)
-    linear_convert["kg/m^2", "Mg/m^2"] = (0.001, 0)
+    # linear_convert["kg/m^2", "Mg/m^2"] = (0.001, 0)
     linear_convert["1", "%"] = (100, 0)
     linear_convert["1", "percent"] = (100, 0)
     linear_convert["Pa", "hPa"] = (0.01, 0)
     linear_convert["octas", "1"] = (0.125, 0)
     linear_convert["octas", "%"] = (12.5, 0)
-    linear_convert["m", "mm"] = (1000, 0)
-    linear_convert["m", "kg/m^2"] = (1000, 0)
+    # linear_convert["m", "mm"] = (1000, 0)
+    # linear_convert["m", "kg/m^2"] = (1000, 0)
 
     # ** means the same as ^
     for key, _c in dict(linear_convert).items():
@@ -100,7 +100,7 @@ def find_common_name(units: str) -> str:
         "kg/m^2": ["mm", "Kg/m^2", "Kg/m2", "kg/m2", "mm/6h", "mm/3h", "mm/1h"], # Don't worry about the temporal accum window, verif handles it
         "degree": ["degrees"],
         "%": ["percent"],
-        "m": ["Mg/m^2"]
+        # "m": ["Mg/m^2"]
     }
     if units in identical:
         return units
