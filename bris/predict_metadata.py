@@ -18,15 +18,17 @@ class PredictMetadata:
         self.variables = variables
 
         # Ensure lons are on the interval -180, 180
-        self.lats = np.array(lats)
-        self.lons = np.array(lons)
+        # Convert to float64 as required by gridpp (SWIG bindings only accept double precision)
+        self.lats = np.array(lats, dtype=np.float64)
+        self.lons = np.array(lons, dtype=np.float64)
 
         assert self.lats.shape == self.lons.shape, (self.lats.shape, self.lons.shape)
 
         self.lons[self.lons < -180] += 360
         self.lons[self.lons > 180] -= 360
 
-        self.altitudes = altitudes
+        # Convert altitudes to float64 as required by gridpp
+        self.altitudes = np.array(altitudes, dtype=np.float64) if altitudes is not None else None
         self.leadtimes = leadtimes
         self.num_members = num_members
         self.field_shape = field_shape
