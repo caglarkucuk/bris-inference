@@ -30,6 +30,7 @@ def get_metadata(anemoi_variable: str) -> dict:
         "vis": ("visibility_in_air", "height", 0),
         "cbh": ("cloud_base_altitude", "height", 0),
         "ws": ("wind_speed", "height", 10),
+        "100ws": ("wind_speed", "height", 100),
         "fog": ("fog_type_cloud_area_fraction", "height", 0),
         "hcc": ("high_type_cloud_area_fraction", "height", 0),
         "lcc": ("low_type_cloud_area_fraction", "height", 0),
