@@ -182,6 +182,7 @@ class Frost(Source):
             fvar_to_param = {
                 "air_temperature": "t2m",
                 "wind_speed": "ws10m",
+                "wind_speed_100m": "100ws",
                 "air_pressure_at_sea_level": "mslp",
                 "sum(precipitation_amount PT6H)": "precip6h",
             }

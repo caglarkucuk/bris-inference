@@ -56,6 +56,8 @@ def get_required_variables(name, init_args):
                 for var_name in init_args["extra_variables"]:
                     if var_name == "ws":
                         variables += ["10u", "10v"]
+                    elif var_name == "100ws":
+                        variables += ["100u", "100v"]
             if "accumulated_variables" in init_args:
                 for var_name in init_args["accumulated_variables"]:
                     if var_name not in variables:
@@ -67,6 +69,8 @@ def get_required_variables(name, init_args):
     if name in ["verif", "powerspectrum_gridded", "powerspectrum_global"]:
         if init_args["variable"] == "ws":
             return ["10u", "10v"]
+        elif init_args["variable"] == "100ws":
+            return ["100u", "100v"]
         return [init_args["variable"]]
 
     if name == "grib":
@@ -76,6 +80,8 @@ def get_required_variables(name, init_args):
                 for name in init_args["extra_variables"]:
                     if name == "ws":
                         variables += ["10u", "10v"]
+                    elif name == "100ws":
+                        variables += ["100u", "100v"]
             variables = sorted(set(variables))
             return variables
         return [None]
@@ -128,6 +134,11 @@ class Output:
                 if name == "ws":
                     Ix = self.pm.variables.index("10u")
                     Iy = self.pm.variables.index("10v")
+                    curr = np.sqrt(pred[..., [Ix]] ** 2 + pred[..., [Iy]] ** 2)
+                    extra_pred += [curr]
+                elif name == "100ws":
+                    Ix = self.pm.variables.index("100u")
+                    Iy = self.pm.variables.index("100v")
                     curr = np.sqrt(pred[..., [Ix]] ** 2 + pred[..., [Iy]] ** 2)
                     extra_pred += [curr]
                 else:

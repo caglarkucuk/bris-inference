@@ -146,11 +146,17 @@ class Verif(Output):
             if self._is_gridded_input:
                 pred = self.reshape_pred(pred)
                 pred = pred[..., Iv]  # Extract single variable
+                # Convert to float64 as required by gridpp
+                pred = pred.astype(np.float64)
                 interpolated_pred = gridpp.bilinear(self.igrid, self.opoints, pred)
+                # Make a writable copy for units.convert (gridpp returns float32)
+                interpolated_pred = np.array(interpolated_pred, dtype=np.float64, copy=True)
 
                 if self.elev_gradient is not None:
+                    # Convert elevations to float64 as required by gridpp
+                    elevs = np.asarray(self.igrid.get_elevs(), dtype=np.float64)
                     interpolated_altitudes = gridpp.bilinear(
-                        self.igrid, self.opoints, self.igrid.get_elevs()
+                        self.igrid, self.opoints, elevs
                     )
                     daltitude = self.opoints.get_elevs() - interpolated_altitudes
                     interpolated_pred += self.elev_gradient * daltitude
@@ -162,10 +168,11 @@ class Verif(Output):
 
                 altitude_correction = None
                 if self.elev_gradient is not None:
-                    interpolator = scipy.interpolate.LinearNDInterpolator(
-                        self.triangulation, self.ialtitudes
+                    # Ensure elevations are float32 for consistency
+                    elevs = np.asarray(self.igrid.get_elevs(), dtype=np.float32)
+                    interpolated_altitudes = gridpp.bilinear(
+                        self.igrid, self.opoints, elevs
                     )
-                    interpolated_altitudes = interpolator(self.opoints_array)
                     altitude_correction = (
                         self.opoints.get_elevs() - interpolated_altitudes
                     )
@@ -239,17 +246,17 @@ class Verif(Output):
         coords["location"] = (["location"], self.obs_ids)
         coords["lat"] = (
             ["location"],
-            self.opoints.get_lats(),
+            np.array(self.opoints.get_lats(), dtype=np.float64),
             cf.get_attributes("latitude"),
         )
         coords["lon"] = (
             ["location"],
-            self.opoints.get_lons(),
+            np.array(self.opoints.get_lons(), dtype=np.float64),
             cf.get_attributes("longitude"),
         )
         coords["altitude"] = (
             ["location"],
-            self.opoints.get_elevs(),
+            np.array(self.opoints.get_elevs(), dtype=np.float64),
             cf.get_attributes("surface_altitude"),
         )
         if self.num_members > 1:
@@ -521,14 +528,23 @@ class Verif(Output):
             obs_altitudes += [loc.elev for loc in obs_source.locations]
             obs_ids += [loc.id for loc in obs_source.locations]
 
+        # print(f"DEBUG get_points: predict_metadata.lats dtype={predict_metadata.lats.dtype}")
+        # print(f"DEBUG get_points: predict_metadata.lons dtype={predict_metadata.lons.dtype}")
         if predict_metadata.altitudes is not None:
+            # print(f"DEBUG get_points: predict_metadata.altitudes dtype={predict_metadata.altitudes.dtype}")
             ipoints = gridpp.Points(
                 predict_metadata.lats, predict_metadata.lons, predict_metadata.altitudes
             )
         else:
             ipoints = gridpp.Points(predict_metadata.lats, predict_metadata.lons)
+        
+        # Convert obs arrays to float64 as required by gridpp
+        obs_lats_arr = np.array(obs_lats, dtype=np.float64)
+        obs_lons_arr = np.array(obs_lons, dtype=np.float64)
+        obs_altitudes_arr = np.array(obs_altitudes, dtype=np.float64)
+        # print(f"DEBUG get_points: obs arrays dtype={obs_lats_arr.dtype}")
         opoints = gridpp.Points(
-            np.array(obs_lats), np.array(obs_lons), np.array(obs_altitudes)
+            obs_lats_arr, obs_lons_arr, obs_altitudes_arr
         )
 
         if max_distance is not None:
