@@ -141,7 +141,8 @@ def get_required_variables(
         required_variables[rc["decoder_name"]] += var_list
 
     for decoder_name, v in required_variables.items():
-        if None in v:
+        # If None in variables OR empty list (no outputs specified), use all model outputs
+        if None in v or len(v) == 0:
             model_output = checkpoint_object.data_indices[decoder_name].model.output.includes
             required_variables[decoder_name] = sorted(model_output)
         else:

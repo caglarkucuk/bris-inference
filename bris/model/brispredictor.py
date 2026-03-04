@@ -103,12 +103,15 @@ class BrisPredictor(BasePredictor):
         self.latitudes = datamodule.latitudes
         self.longitudes = datamodule.longitudes
         self.fcstep_const = fcstep_const
-        if hasattr(checkpoint.model.model, "inputs"):
-            self.dataset_names = checkpoint.model.model.inputs
-        elif hasattr(checkpoint.model.model, "dataset_names"): # Compatilbility with anemoi core main
-            self.dataset_names = checkpoint.model.model.dataset_names
-        else: # Legacy compatibility
-            self.dataset_names = ["data"]
+        # Extract dataset names from checkpoint.data_indices, which is the source of truth
+        # checkpoint.data_indices is a dict with keys being dataset names (e.g., ['era5', 'ara'])
+        if hasattr(checkpoint, "data_indices") and isinstance(checkpoint.data_indices, dict):
+            self.dataset_names = list(checkpoint.data_indices.keys())
+        else:
+            raise RuntimeError(
+                "Cannot determine dataset names from checkpoint. "
+                "Expected checkpoint.data_indices to be a dict with dataset names as keys."
+            )
 
         assert self.dataset_names == datamodule.dataset_names, (
             f" Dataset names of the input data {datamodule.dataset_names} do not match expected dataset names {self.dataset_names} of the model."
@@ -311,7 +314,7 @@ class BrisPredictor(BasePredictor):
 
         with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
             for forecast_step in range(self.forecast_length - 1):
-                # TODO: Need backwards compatibility with models where batch is tensor
+                # TODO: Need backwards compatibility with models where batch is tensor..??
                 try:
                     if self.fcstep_const:
                        y_pred = self(x, fcstep=0)
@@ -322,9 +325,11 @@ class BrisPredictor(BasePredictor):
                 time += self.timestep
                 x = self.advance_input_predict(x, y_pred, time)
                 for ds in self.dataset_names:
+                    # Handle ensemble dimension: shape is [batch, ensemble, timestep, gridpoints, variables]
+                    # Select ensemble=0, timestep=0, then select output variables
                     y_preds[ds][:, forecast_step + 1] = self.model.post_processors[ds](
-                    y_pred[ds], in_place=True
-                    )[:, 0, :, self.indices[ds]["variables_output"]].cpu()
+                        y_pred[ds], in_place=True
+                    )[:, 0, 0, :, self.indices[ds]["variables_output"]].cpu()
 
                 times.append(time)
                 if self.release_cache:
