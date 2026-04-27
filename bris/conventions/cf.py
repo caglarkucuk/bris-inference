@@ -48,6 +48,17 @@ def get_metadata(anemoi_variable: str) -> dict:
             "height",
             0,
         ),
+        "sf": ("snow_amount", "height", 0),
+        "ssrd": (
+            "integral_of_surface_downwelling_shortwave_flux_in_air_wrt_time",
+            "height",
+            0,
+        ),
+        "strd": (
+            "integral_of_surface_downwelling_longwave_flux_in_air_wrt_time",
+            "height",
+            0,
+        ),
     }
 
     if anemoi_variable in variable_mapping:
@@ -176,6 +187,10 @@ def get_attributes(cfname: str) -> dict[str, str] | dict:
         "surface_temperature": {
             "long_name": "Surface (skin) temperature (SKT)",
             "units": "K",
+        },
+        "snow_amount": {
+            "long_name": "Snow amount (SF)",
+            "units": "kg/m^2",
         },
     }
 
