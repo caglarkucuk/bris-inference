@@ -1,6 +1,9 @@
 import numpy as np
 import torch
-from anemoi.datasets.data.dataset import Dataset
+try:
+    from anemoi.datasets.usage.dataset import Dataset
+except ImportError:
+    from anemoi.datasets.data.dataset import Dataset
 from anemoi.models.data_indices.index import DataIndex, ModelIndex
 from anemoi.utils.config import DotDict
 

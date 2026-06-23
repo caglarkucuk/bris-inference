@@ -2,8 +2,12 @@ import logging
 from functools import cached_property
 from typing import Any
 
-import anemoi.datasets.data.select
-import anemoi.datasets.data.subset
+try:
+    import anemoi.datasets.usage.gridded.select as _select
+    import anemoi.datasets.usage.gridded.subset as _subset
+except ImportError:
+    import anemoi.datasets.data.select as _select
+    import anemoi.datasets.data.subset as _subset
 import numpy as np
 import pytorch_lightning as pl
 from anemoi.datasets import open_dataset
@@ -245,8 +249,8 @@ class DataModule(pl.LightningDataModule):
             while isinstance(
                 dataset,
                 (
-                    anemoi.datasets.data.subset.Subset,
-                    anemoi.datasets.data.select.Select,
+                    _subset.Subset,
+                    _select.Select,
                 ),
             ):
                 dataset = dataset.dataset
