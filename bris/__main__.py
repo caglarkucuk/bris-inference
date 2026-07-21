@@ -48,9 +48,21 @@ def main(arg_list: list[str] | None = None):
     set_base_seed()
 
     # Compute timestep_seconds for each checkpoint
-    config.checkpoints.forecaster.timestep = checkpoints[
-        "forecaster"
-    ].config.data.timestep
+    # anemoi-training's newer config schema (>=0.14.0) no longer stores a top-level
+    # data.timestep -- fall back to data.frequency (equivalent here: no multi-step-ahead
+    # skipping, multistep_output=1, rollout.maximum=1), then config.task.timestep as a
+    # last resort. task.timestep is pandas-style ("6H", uppercase) while bris's own
+    # timedelta64_from_timestep only recognizes lowercase h/m/s suffixes, so normalize case.
+    _forecaster_cfg = checkpoints["forecaster"].config
+    _forecaster_data_cfg = _forecaster_cfg.data
+    _raw_timestep = (
+        getattr(_forecaster_data_cfg, "timestep", None)
+        or getattr(_forecaster_data_cfg, "frequency", None)
+        or getattr(getattr(_forecaster_cfg, "task", None), "timestep", None)
+    )
+    config.checkpoints.forecaster.timestep = (
+        _raw_timestep.lower() if isinstance(_raw_timestep, str) else _raw_timestep
+    )
     config.checkpoints.forecaster.timestep_seconds = frequency_to_seconds(
         config.checkpoints.forecaster.timestep
     )
@@ -83,11 +95,17 @@ def main(arg_list: list[str] | None = None):
         num_members_in_parallel = num_members
 
     # Get multistep. A default of 2 to ignore multistep in start_date calculation if not set.
+    # anemoi-training's newer schema (>=0.14.0) moved multistep_input from config.training
+    # to config.task -- DotDict raises AttributeError (not KeyError) for missing attrs, so
+    # this also fixes the except clause below, which never actually caught the old lookup.
     multistep = 2
-    try:
-        multistep = checkpoints["forecaster"].config.training.multistep_input
-    except KeyError:
-        LOGGER.debug("Multistep not found in checkpoint")
+    _forecaster_cfg = checkpoints["forecaster"].config
+    multistep = getattr(_forecaster_cfg.training, "multistep_input", None) or getattr(
+        getattr(_forecaster_cfg, "task", None), "multistep_input", None
+    )
+    if multistep is None:
+        multistep = 2
+        LOGGER.debug("Multistep not found in checkpoint (checked config.training and config.task)")
 
     # If no start_date given, calculate as end_date-((multistep-1)*timestep)
     if "start_date" not in config or config.start_date is None:

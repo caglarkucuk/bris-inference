@@ -98,7 +98,20 @@ class BrisPredictor(BasePredictor):
         self.data_indices = checkpoint.data_indices
         self.metadata = checkpoint.metadata
 
-        self.timestep = timedelta64_from_timestep(self.metadata.config.data.timestep)
+        # anemoi-training's newer schema (>=0.14.0) no longer stores a top-level
+        # data.timestep -- fall back to data.frequency (equivalent here: no multi-step-
+        # ahead skipping), then config.task.timestep as a last resort. task.timestep is
+        # pandas-style ("6H", uppercase) while timedelta64_from_timestep only recognizes
+        # lowercase h/m/s suffixes, so normalize case.
+        _data_cfg = self.metadata.config.data
+        _task_cfg = getattr(self.metadata.config, "task", None)
+        _raw_timestep = (
+            getattr(_data_cfg, "timestep", None)
+            or getattr(_data_cfg, "frequency", None)
+            or getattr(_task_cfg, "timestep", None)
+        )
+        _timestep = _raw_timestep.lower() if isinstance(_raw_timestep, str) else _raw_timestep
+        self.timestep = timedelta64_from_timestep(_timestep)
         self.forecast_length = checkpoints_config["forecaster"]["leadtimes"]
         self.latitudes = datamodule.latitudes
         self.longitudes = datamodule.longitudes
@@ -240,7 +253,16 @@ class BrisPredictor(BasePredictor):
         Returns:
             dict: Dictionary containing the predicted output, time stamps, group rank, and ensemble member.
         """
-        multistep = self.metadata.config.training.multistep_input
+        # anemoi-training's newer schema (>=0.14.0) moved multistep_input from
+        # config.training to config.task
+        multistep = getattr(
+            self.metadata.config.training, "multistep_input", None
+        ) or getattr(getattr(self.metadata.config, "task", None), "multistep_input", None)
+        if multistep is None:
+            raise RuntimeError(
+                "Could not find multistep_input in checkpoint config "
+                "(checked config.training and config.task)"
+            )
 
         batch = self.allgather_batch(batch)
 

@@ -111,6 +111,12 @@ class Checkpoint:
             return self._metadata.config.training.multistep
         if hasattr(self._metadata.config.training, "multistep_input"):
             return self._metadata.config.training.multistep_input
+        # anemoi-training's newer schema (>=0.14.0) moved multistep_input from
+        # config.training to config.task
+        if hasattr(self._metadata.config, "task") and hasattr(
+            self._metadata.config.task, "multistep_input"
+        ):
+            return self._metadata.config.task.multistep_input
         raise RuntimeError("Cannot find multistep")
 
     @property
