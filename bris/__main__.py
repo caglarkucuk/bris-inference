@@ -1,4 +1,5 @@
 import os
+import shutil
 import time
 from concurrent.futures import Future
 from datetime import datetime, timedelta
@@ -15,6 +16,7 @@ from .utils import (
     LOGGER,
     create_config,
     get_all_leadtimes,
+    get_workdir,
     parse_args,
     set_base_seed,
     set_encoder_decoder_num_chunks,
@@ -210,10 +212,36 @@ def main(arg_list: list[str] | None = None):
             p.result()
             LOGGER.debug(f"Waited {time.perf_counter() - t2:.1f}s for {p} to complete.")
 
-    # Finalize all outputs, so they can flush to disk if needed
     is_main_thread = ("SLURM_PROCID" not in os.environ) or (
         os.environ["SLURM_PROCID"] == "0"
     )
+
+    # Rank 0 must not finalize until every rank's background writes are done, otherwise it
+    # can read another rank's half-written intermediate .npy ("cannot reshape array of size
+    # ..."). Each rank's own pool is drained above; marker files make that visible to rank 0.
+    # They live beside, not inside, the intermediate dirs (<workdir>/<job>_<n>), whose cleanup
+    # uses os.rmdir and would fail on a non-empty dir.
+    if "SLURM_PROCID" in os.environ:
+        sync_dir = get_workdir(config.workdir) + "_done"
+        os.makedirs(sync_dir, exist_ok=True)
+        open(f"{sync_dir}/rank{os.environ['SLURM_PROCID']}", "w").close()
+        if is_main_thread:
+            ntasks = int(os.environ.get("SLURM_NTASKS", "1"))
+            t2 = time.perf_counter()
+            deadline = time.time() + 600
+            while len(os.listdir(sync_dir)) < ntasks:
+                if time.time() > deadline:
+                    raise RuntimeError(
+                        f"Only {len(os.listdir(sync_dir))}/{ntasks} ranks finished writing "
+                        f"after 600s, see {sync_dir}"
+                    )
+                time.sleep(2)
+            shutil.rmtree(sync_dir)
+            LOGGER.info(
+                f"Waited {time.perf_counter() - t2:.1f}s for all {ntasks} ranks to finish writing."
+            )
+
+    # Finalize all outputs, so they can flush to disk if needed
     if is_main_thread:
         LOGGER.debug("Starting finalizing all outputs.")
         t1 = time.perf_counter()
